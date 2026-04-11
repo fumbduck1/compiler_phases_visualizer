@@ -1,0 +1,12 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd \"c:\\\\Users\\\\akram\\\\Desktop\\\\compiler project\\\\compiler_phases_visualizer\"; python test_pipeline\\.py$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^cd \"c:\\\\Users\\\\akram\\\\Desktop\\\\compiler project\\\\compiler_phases_visualizer\"; python -c \"from core\\.lexer import lex; from core\\.parser import parse; from core\\.semantic import analyze_semantics; from gui\\.visual_helpers import VisualHelpers; src='position = initial \\+ rate \\* 60'; t,s,e=lex\\(src\\); ast,pe=parse\\(t,s\\); print\\(VisualHelpers\\.format_syntax_analysis\\(ast\\)\\); print\\(\\); sast, se, c = analyze_semantics\\(ast, s\\); print\\(VisualHelpers\\.format_semantic_analysis\\(sast,c\\)\\)\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

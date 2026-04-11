@@ -1,0 +1,21 @@
+KEYWORDS = {"int", "float", "if", "else", "while", "return"}
+
+OPERATORS = {
+    "=": "=",
+    "+": "+",
+    "-": "-",
+    "*": "*",
+    "/": "/",
+    "(": "(",
+    ")": ")",
+    ";": ";",
+    ",": ",",
+}
+
+DIGITS = set("0123456789")
+LETTERS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+LETTERS_DIGITS = LETTERS | DIGITS
+
+WHITESPACE = {" ", "\t", "\n", "\r"}
+
+EOF_MARKER = "EOF"
