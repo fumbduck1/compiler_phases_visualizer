@@ -57,4 +57,4 @@ Input expression: `position=inital+rate*60`
 
 ## Usage
 
-Enter an expression and click "Compile" to see all phases render in their respective tabs.
+Enter an expression and click "Analyze" to see all phases render in their respective tabs.
