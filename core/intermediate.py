@@ -13,6 +13,8 @@ class TACInstruction:
     def __repr__(self):
         type_suffix = f":{self.type_info}" if self.type_info else ""
         if self.result:
+            if self.op == "=" and self.arg1 is not None:
+                return f"{self.result} = {self.arg1}{type_suffix}"
             if self.arg2:
                 return f"{self.result} = {self.arg1} {self.op} {self.arg2}{type_suffix}"
             elif self.arg1:
@@ -36,6 +38,38 @@ class IntermediateCodeGenerator:
         self.instructions: List[TACInstruction] = []
         self.temp_counter = 0
         self.temp_types = {}  # Track types of temps: {temp_name: type}
+
+    def _emit_copy(self, operand: str, type_info=None) -> str:
+        result = self._new_temp()
+        instr = TACInstruction("=", arg1=operand, result=result, type_info=type_info)
+        self.instructions.append(instr)
+        self.temp_types[result] = type_info
+        return result
+
+    def _materialize_operand(self, node: ParseNode) -> Optional[str]:
+        if node is None:
+            return None
+
+        if hasattr(node, "coercion") and node.coercion:
+            return self._handle_coercion(node)
+
+        if node.node_type == "id":
+            return self._emit_copy(f"id{node.value}", node.type_info)
+        if node.node_type == "num":
+            return self._emit_copy(str(node.value), node.type_info)
+
+        return self._visit(node, None)
+
+    def _materialize_operand_without_coercion(self, node: ParseNode) -> Optional[str]:
+        if node is None:
+            return None
+
+        if node.node_type == "id":
+            return self._emit_copy(f"id{node.value}", node.type_info)
+        if node.node_type == "num":
+            return self._emit_copy(str(node.value), node.type_info)
+
+        return self._visit_without_coercion(node)
 
     def generate(self) -> List[TACInstruction]:
         if self.ast is None:
@@ -70,10 +104,8 @@ class IntermediateCodeGenerator:
     def _handle_coercion(self, node: ParseNode) -> str:
         """Emit coercion instruction for a node with coercion attribute."""
         # Recursively visit the node without coercion to get the raw operand
-        if node.node_type == "num":
-            operand = str(node.value)
-        elif node.node_type == "id":
-            operand = f"id{node.value}"
+        if node.node_type in ("num", "id"):
+            operand = self._materialize_operand_without_coercion(node)
         else:
             # For complex expressions, visit normally then coerce result
             operand = self._visit_without_coercion(node)
@@ -93,7 +125,7 @@ class IntermediateCodeGenerator:
         if node.node_type == "assign":
             if len(node.children) >= 2:
                 target = self._visit_without_coercion(node.children[0])
-                value = self._visit_without_coercion(node.children[1])
+                value = self._materialize_operand_without_coercion(node.children[1])
                 rhs_type = node.children[1].type_info if hasattr(node.children[1], 'type_info') else None
                 instr = TACInstruction("=", arg1=value, result=target, type_info=rhs_type)
                 self.instructions.append(instr)
@@ -115,7 +147,7 @@ class IntermediateCodeGenerator:
             return None
 
         if len(node.children) == 1:
-            operand = self._visit_without_coercion(node.children[0])
+            operand = self._materialize_operand_without_coercion(node.children[0])
             result = self._new_temp()
             result_type = node.type_info if hasattr(node, 'type_info') else None
             instr = TACInstruction(node.value, arg1=operand, result=result, type_info=result_type)
@@ -124,8 +156,8 @@ class IntermediateCodeGenerator:
             return result
 
         if len(node.children) >= 2:
-            left = self._visit_without_coercion(node.children[0])
-            right = self._visit_without_coercion(node.children[1])
+            left = self._materialize_operand_without_coercion(node.children[0])
+            right = self._materialize_operand_without_coercion(node.children[1])
             
             result = self._new_temp()
             result_type = node.type_info if hasattr(node, 'type_info') else None
@@ -142,7 +174,7 @@ class IntermediateCodeGenerator:
     def _gen_assign(self, node: ParseNode) -> str:
         if len(node.children) >= 2:
             target = self._visit(node.children[0], None)
-            value = self._visit(node.children[1], None)
+            value = self._materialize_operand(node.children[1])
 
             # Get type info from RHS 
             rhs_type = node.children[1].type_info if hasattr(node.children[1], 'type_info') else None
@@ -162,7 +194,7 @@ class IntermediateCodeGenerator:
             return None
 
         if len(node.children) == 1:
-            operand = self._visit(node.children[0], None)
+            operand = self._materialize_operand(node.children[0])
             result = self._new_temp()
             result_type = node.type_info if hasattr(node, 'type_info') else None
             instr = TACInstruction(node.value, arg1=operand, result=result, type_info=result_type)
@@ -172,8 +204,8 @@ class IntermediateCodeGenerator:
 
         if len(node.children) >= 2:
             # Process left and right operands (coercions handled in _visit)
-            left = self._visit(node.children[0], None)
-            right = self._visit(node.children[1], None)
+            left = self._materialize_operand(node.children[0])
+            right = self._materialize_operand(node.children[1])
             
             result = self._new_temp()
             result_type = node.type_info if hasattr(node, 'type_info') else None

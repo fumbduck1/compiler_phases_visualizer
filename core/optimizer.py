@@ -1,4 +1,4 @@
-from typing import List, Dict, Set, Optional
+from typing import List
 from core.intermediate import TACInstruction
 
 
@@ -24,9 +24,46 @@ class Optimizer:
         # Run optimization passes
         optimized = self._clone_instructions(self.instructions)
         optimized = self._constant_folding(optimized)
+        optimized = self._common_subexpression_elimination(optimized)
         optimized = self._operation_compacting(optimized)
         optimized = self._copy_propagation(optimized)
         optimized = self._dead_code_elimination(optimized)
+        return optimized
+
+    def _common_subexpression_elimination(self, instructions: List[TACInstruction]) -> List[TACInstruction]:
+        """Reuse earlier results for repeated pure expressions."""
+        if not instructions:
+            return instructions
+
+        seen = {}
+        optimized = []
+
+        for instr in instructions:
+            if instr.op in ["+", "-", "*", "/", "intfloat", "="] and instr.result:
+                left = instr.arg1
+                right = instr.arg2
+
+                if instr.op in ["+", "*"]:
+                    ordered = tuple(sorted([str(left), str(right)]))
+                    key = (instr.op, ordered[0], ordered[1], instr.type_info)
+                else:
+                    key = (instr.op, str(left), str(right), instr.type_info)
+
+                if key in seen and seen[key] != instr.result:
+                    optimized.append(
+                        TACInstruction(
+                            "=",
+                            arg1=seen[key],
+                            result=instr.result,
+                            type_info=instr.type_info,
+                        )
+                    )
+                    continue
+
+                seen[key] = instr.result
+
+            optimized.append(instr)
+
         return optimized
 
     def _copy_propagation(self, instructions: List[TACInstruction]) -> List[TACInstruction]:
@@ -168,7 +205,6 @@ class Optimizer:
                 if len(uses) == 1:
                     use_idx = uses[0]
                     def_instr = instructions[def_idx]
-                    use_instr = instructions[use_idx]
                     
                     # Can inline if definition is simple (not storing to variable)
                     if (def_instr.op in ["intfloat", "="] and 
