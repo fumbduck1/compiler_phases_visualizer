@@ -2,7 +2,7 @@ import customtkinter as ctk
 import tkinter as tk
 import re
 from copy import deepcopy
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 from core.lexer import lex
 from core.parser import parse
 from core.semantic import analyze_semantics
@@ -42,10 +42,6 @@ class PhasePanels(ctk.CTkFrame):
 
     def _build_semantic_notes(self, coercions: List[Dict[str, Any]]) -> str:
         lines = [
-            "Semantic Checks",
-            "- Type checking: PASSED",
-            "- Type compatibility: VERIFIED",
-            "- All variables declared",
         ]
 
         if coercions:
@@ -66,28 +62,42 @@ class PhasePanels(ctk.CTkFrame):
         self._clear_tab(phase)
 
     def _build_table_card(
-        self, parent, title: str, headers: List[str], rows: List[List[Any]], accent: str
+        self,
+        parent,
+        title: str,
+        headers: List[str],
+        rows: List[List[Any]],
+        accent: str,
+        compact: bool = False,
     ):
         card = ctk.CTkFrame(parent, fg_color="#151a22", corner_radius=10)
+        title_font = ("Arial", 12, "bold") if compact else ("Arial", 13, "bold")
+        header_font = ("Arial", 10, "bold") if compact else ("Arial", 11, "bold")
+        cell_font = ("Arial", 10) if compact else ("Arial", 11)
+        title_padx = 8 if compact else 10
+        title_pady = (8, 4) if compact else (10, 6)
+        cell_padx = 5 if compact else 6
+        cell_pady = 2 if compact else 3
+
         title_label = ctk.CTkLabel(
             card,
             text=title,
-            font=("Arial", 13, "bold"),
+            font=title_font,
             text_color=accent,
         )
-        title_label.grid(row=0, column=0, columnspan=len(headers), sticky="w", padx=10, pady=(10, 6))
+        title_label.grid(row=0, column=0, columnspan=len(headers), sticky="w", padx=title_padx, pady=title_pady)
 
         for column, header in enumerate(headers):
             header_label = ctk.CTkLabel(
                 card,
                 text=header,
-                font=("Arial", 11, "bold"),
+                font=header_font,
                 fg_color="#2a3340",
                 corner_radius=6,
-                padx=8,
-                pady=4,
+                padx=6 if compact else 8,
+                pady=3 if compact else 4,
             )
-            header_label.grid(row=1, column=column, sticky="nsew", padx=6, pady=(0, 6))
+            header_label.grid(row=1, column=column, sticky="nsew", padx=5 if compact else 6, pady=(0, 4 if compact else 6))
             card.grid_columnconfigure(column, weight=1)
 
         if rows:
@@ -96,21 +106,21 @@ class PhasePanels(ctk.CTkFrame):
                     cell_label = ctk.CTkLabel(
                         card,
                         text=str(cell),
-                        font=("Courier", 11),
+                        font=cell_font,
                         fg_color="#1d2430" if row_index % 2 == 0 else "#18202b",
                         corner_radius=6,
-                        padx=8,
-                        pady=4,
+                        padx=cell_padx,
+                        pady=cell_pady,
                     )
-                    cell_label.grid(row=row_index, column=column, sticky="nsew", padx=6, pady=3)
+                    cell_label.grid(row=row_index, column=column, sticky="nsew", padx=5 if compact else 6, pady=2 if compact else 3)
         else:
             empty_label = ctk.CTkLabel(
                 card,
                 text="No entries",
-                font=("Courier", 11),
+                font=cell_font,
                 text_color="#8b97a7",
             )
-            empty_label.grid(row=2, column=0, columnspan=len(headers), sticky="w", padx=10, pady=(6, 10))
+            empty_label.grid(row=2, column=0, columnspan=len(headers), sticky="w", padx=title_padx, pady=(4 if compact else 6, 8 if compact else 10))
 
         return card
 
@@ -120,53 +130,64 @@ class PhasePanels(ctk.CTkFrame):
         scroll = ctk.CTkScrollableFrame(self.tabs["Lexical"])
         scroll.pack(expand=True, fill="both", padx=8, pady=8)
 
-        # Identifiers grid card
+        scroll.grid_columnconfigure(0, weight=1, uniform="lex")
+        scroll.grid_columnconfigure(1, weight=3, uniform="lex")
+        scroll.grid_rowconfigure(0, weight=1)
+
+        left_panel = ctk.CTkFrame(scroll, fg_color="transparent")
+        left_panel.grid(row=0, column=0, sticky="nsew", padx=(2, 8), pady=2)
+        left_panel.grid_columnconfigure(0, weight=1)
+
+        right_panel = ctk.CTkFrame(scroll, fg_color="transparent")
+        right_panel.grid(row=0, column=1, sticky="nsew", padx=(0, 2), pady=2)
+        right_panel.grid_columnconfigure(0, weight=1)
+
         identifiers = VisualHelpers.lexical_identifiers_rows(tokens)
         if identifiers:
             id_card = self._build_table_card(
-                scroll,
+                left_panel,
                 "Identifiers",
                 ["Lexeme", "Index"],
                 identifiers,
                 "#d4a574",
+                compact=True,
             )
-            id_card.pack(fill="x", padx=4, pady=(0, 8))
+            id_card.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 8))
 
-        # Operators grid card
         operators = VisualHelpers.lexical_operators_rows(tokens)
         if operators:
             op_card = self._build_table_card(
-                scroll,
+                left_panel,
                 "Operators",
                 ["Operator", "Type"],
                 operators,
                 "#a8d5ba",
+                compact=True,
             )
-            op_card.pack(fill="x", padx=4, pady=(0, 8))
+            op_card.grid(row=1, column=0, sticky="ew", padx=0, pady=(0, 8))
 
-        # Literals grid card
         literals = VisualHelpers.lexical_literals_rows(tokens)
         if literals:
             lit_card = self._build_table_card(
-                scroll,
+                left_panel,
                 "Literals",
                 ["Value", "Type"],
                 literals,
                 "#b8a8d5",
+                compact=True,
             )
-            lit_card.pack(fill="x", padx=4, pady=(0, 8))
+            lit_card.grid(row=2, column=0, sticky="ew", padx=0, pady=(0, 8))
 
-        # Tokenized expression grid card (single row)
         token_expr_rows = VisualHelpers.lexical_token_rows(tokens)
         if token_expr_rows:
             expr_card = self._build_table_card(
-                scroll,
+                right_panel,
                 "Tokenized Expression",
                 ["Expression"],
                 token_expr_rows,
                 "#f3f0c8",
             )
-            expr_card.pack(fill="x", padx=4, pady=(0, 4))
+            expr_card.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
 
     def _build_phase_table(self, phase: str, title: str, headers: List[str], rows: List[List[Any]]):
         self._clear_tab(phase)
@@ -204,7 +225,7 @@ class PhasePanels(ctk.CTkFrame):
                     cell_label = ctk.CTkLabel(
                         card,
                         text=str(cell),
-                        font=("Courier", 11),
+                        font=("Arial", 11),
                         fg_color="#1d2430" if row_index % 2 == 0 else "#18202b",
                         corner_radius=6,
                         padx=8,
@@ -215,7 +236,7 @@ class PhasePanels(ctk.CTkFrame):
             empty_label = ctk.CTkLabel(
                 card,
                 text="No entries",
-                font=("Courier", 11),
+                font=("Arial", 11),
                 text_color="#8b97a7",
             )
             empty_label.grid(row=2, column=0, columnspan=len(headers), sticky="w", padx=10, pady=(6, 10))
@@ -245,7 +266,7 @@ class PhasePanels(ctk.CTkFrame):
         self._clear_tab("Semantic")
 
         semantic_model = VisualHelpers._to_tree_model(
-            ast, include_types=True, semantic=True, symbol_table=symbol_table
+            ast, include_types=False, semantic=True, symbol_table=symbol_table
         )
 
         tree_view = ASTCanvasView(self.tabs["Semantic"], semantic_model)
@@ -254,7 +275,7 @@ class PhasePanels(ctk.CTkFrame):
         notes = ctk.CTkLabel(
             self.tabs["Semantic"],
             text=self._build_semantic_notes(coercions),
-            font=("Courier", 11),
+            font=("Arial", 11),
             justify="left",
             anchor="w",
         )
@@ -268,7 +289,7 @@ class PhasePanels(ctk.CTkFrame):
             scroll.pack(expand=True, fill="both")
 
             label = ctk.CTkLabel(
-                scroll, text=content, font=("Courier", 11), justify="left"
+                scroll, text=content, font=("Arial", 11), justify="left"
             )
             label.pack(anchor="w", padx=10, pady=10)
 
@@ -337,7 +358,7 @@ class SymbolTablePanel(ctk.CTkFrame):
                     cell_label = ctk.CTkLabel(
                         card,
                         text=str(cell),
-                        font=("Courier", 11),
+                        font=("Arial", 11),
                         fg_color="#1d2430" if row_index % 2 == 0 else "#18202b",
                         corner_radius=6,
                         padx=8,
@@ -345,7 +366,7 @@ class SymbolTablePanel(ctk.CTkFrame):
                     )
                     cell_label.grid(row=row_index, column=column, sticky="nsew", padx=6, pady=3)
         else:
-            empty_label = ctk.CTkLabel(card, text="Empty", font=("Courier", 11), text_color="#8b97a7")
+            empty_label = ctk.CTkLabel(card, text="Empty", font=("Arial", 11), text_color="#8b97a7")
             empty_label.grid(row=2, column=0, columnspan=3, sticky="w", padx=10, pady=(6, 10))
 
 
@@ -357,7 +378,7 @@ class ErrorPanel(ctk.CTkFrame):
         label.pack(pady=5)
 
         self.log_label = ctk.CTkLabel(
-            self, text="No errors", font=("Courier", 10), text_color="green"
+            self, text="No errors", font=("Arial", 10), text_color="green"
         )
         self.log_label.pack(padx=10, pady=10)
 
@@ -460,7 +481,7 @@ class ASTCanvasView(ctk.CTkFrame):
             y,
             text=label,
             fill="#10243c",
-            font=("Segoe UI", 12, "bold"),
+            font=("Arial", 12, "bold"),
             justify="center",
         )
 
@@ -613,8 +634,8 @@ class CompilerGUI(ctk.CTk):
             )
             label.pack(expand=True, fill="both", padx=10, pady=10)
 
-        self.symbol_table.table_label.configure(text="Empty")
-        self.error_panel.log_label.configure(text="No errors", text_color="green")
+        self.symbol_table.update([])
+        self.error_panel.update([])
 
 
 def main():
