@@ -24,7 +24,7 @@ class VisualHelpers:
         if node.node_type == "id":
             label = f"<id,{node.value}>"
         elif node.node_type == "num":
-            label = f"num: {node.value}"
+            label = str(node.value)
         elif node.node_type == "op":
             label = str(node.value)
         elif node.value is not None:

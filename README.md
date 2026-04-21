@@ -44,8 +44,7 @@ compiler_phases_visualizer/
 
 ## Example
 
-Input expression: `position=inital+rate*60;`
-
+Input expression: `position=initial+rate*60;`
 more examples : `result = a + 4 * (c - d) - ((a+c) - b) * d;`
 
 | Phase | Screenshot |

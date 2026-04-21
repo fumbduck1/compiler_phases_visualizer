@@ -32,7 +32,7 @@ class PhasePanels(ctk.CTkFrame):
         for name in phase_names:
             self.tabs[name] = self.tabview.add(name)
             label = ctk.CTkLabel(
-                self.tabs[name], text="No data yet", font=("Arial", 12)
+                self.tabs[name], text="No data yet", font=("Arial", 16)
             )
             label.pack(expand=True, fill="both", padx=10, pady=10)
 
@@ -242,12 +242,56 @@ class PhasePanels(ctk.CTkFrame):
             empty_label.grid(row=2, column=0, columnspan=len(headers), sticky="w", padx=10, pady=(6, 10))
 
     def update_intermediate_grid(self, instructions):
-        rows = [[index, str(instruction)] for index, instruction in enumerate(instructions, 1)]
-        self._build_phase_table("Intermediate", "Three-Address Code", ["#", "Instruction"], rows)
+        self._build_numbered_code_view(
+            "Intermediate",
+            "Three-Address Code",
+            [str(instruction) for instruction in instructions],
+        )
 
     def update_optimized_grid(self, instructions):
-        rows = [[index, str(instruction)] for index, instruction in enumerate(instructions, 1)]
-        self._build_phase_table("Optimized", "Optimized TAC", ["#", "Instruction"], rows)
+        self._build_numbered_code_view(
+            "Optimized",
+            "Optimized TAC",
+            [str(instruction) for instruction in instructions],
+        )
+
+    def _build_numbered_code_view(self, phase: str, title: str, lines: List[str]):
+        self._clear_tab(phase)
+
+        scroll = ctk.CTkScrollableFrame(self.tabs[phase])
+        scroll.pack(expand=True, fill="both", padx=8, pady=8)
+
+        card = ctk.CTkFrame(scroll, fg_color="#151a22", corner_radius=10)
+        card.pack(fill="both", expand=True)
+
+        title_label = ctk.CTkLabel(
+            card,
+            text=title,
+            font=("Arial", 13, "bold"),
+            text_color="#c9dff1",
+            anchor="w",
+        )
+        title_label.pack(fill="x", padx=10, pady=(10, 6))
+
+        if lines:
+            numbered = "\n".join(f"{index}. {line}" for index, line in enumerate(lines, 1))
+            code_label = ctk.CTkLabel(
+                card,
+                text=numbered,
+                font=("Consolas", 13),
+                justify="left",
+                anchor="w",
+            )
+            code_label.pack(fill="both", expand=True, padx=12, pady=(2, 10))
+        else:
+            empty_label = ctk.CTkLabel(
+                card,
+                text="No entries",
+                font=("Arial", 11),
+                text_color="#8b97a7",
+                anchor="w",
+            )
+            empty_label.pack(fill="x", padx=10, pady=(6, 10))
 
     def update_assembly_grid(self, assembly):
         rows = [[index, line] for index, line in enumerate(assembly, 1)]
@@ -544,17 +588,17 @@ class CompilerGUI(ctk.CTk):
         self.input_frame.pack(side="top", fill="x", padx=10, pady=10)
 
         self.input_label = ctk.CTkLabel(
-            self.input_frame, text="Enter Code:", font=("Arial", 12)
+            self.input_frame, text="Enter Code/Expression:", font=("Arial", 12)
         )
         self.input_label.pack(side="left", padx=5)
 
         self.input_entry = ctk.CTkTextbox(
             self.input_frame,
             width=520,
-            height=110,
+            height=90,
         )
         self.input_entry.pack(side="left", padx=5)
-        self.input_entry.insert("1.0", "e.g., for(int i=0; i<=100; i++) { x = x + i; }")
+        self.input_entry.insert("1.0", "for(int i=0; i<=100; i++) { x = x + i; }")
 
         self.analyze_btn = ctk.CTkButton(
             self.input_frame, text="Analyze", command=self.run_analysis

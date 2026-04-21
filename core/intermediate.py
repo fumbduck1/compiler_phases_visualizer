@@ -11,16 +11,26 @@ class TACInstruction:
         self.type_info = type_info  # Type of result (int, float, etc.)
 
     def __repr__(self):
-        type_suffix = f":{self.type_info}" if self.type_info else ""
         if self.result:
             if self.op == "=" and self.arg1 is not None:
-                return f"{self.result} = {self.arg1}{type_suffix}"
+                return f"{self.result} = {self.arg1}"
             if self.arg2:
-                return f"{self.result} = {self.arg1} {self.op} {self.arg2}{type_suffix}"
+                return f"{self.result} = {self.arg1} {self.op} {self.arg2}"
             elif self.arg1:
-                return f"{self.result} = {self.op}({self.arg1}){type_suffix}"
-            return f"{self.result} = {self.op}{type_suffix}"
-        return f"{self.op} {self.arg1} {self.arg2}{type_suffix}"
+                return f"{self.result} = {self.op}({self.arg1})"
+            return f"{self.result} = {self.op}"
+
+        if self.op == "label" and self.arg1:
+            return f"label {self.arg1}"
+        if self.op in {"jmp", "return", "error"}:
+            return f"{self.op} {self.arg1}" if self.arg1 is not None else self.op
+        if self.op in {"jz", "jnz"}:
+            return f"{self.op} {self.arg1} {self.arg2}"
+        if self.arg1 is not None and self.arg2 is not None:
+            return f"{self.op} {self.arg1} {self.arg2}"
+        if self.arg1 is not None:
+            return f"{self.op} {self.arg1}"
+        return self.op
 
     def to_dict(self):
         return {
@@ -151,28 +161,31 @@ class IntermediateCodeGenerator:
         incr = node.children[2] if len(node.children) > 2 else None
         body = node.children[3] if len(node.children) > 3 else None
 
-        start_label = self._new_label("for_start_")
+        cond_label = self._new_label("for_cond_")
+        body_label = self._new_label("for_body_")
+        step_label = self._new_label("for_step_")
         end_label = self._new_label("for_end_")
-        continue_label = self._new_label("for_continue_")
 
         if init:
             self._visit(init, None)
 
-        self._emit("label", arg1=start_label)
+        self._emit("label", arg1=cond_label)
 
         if cond and cond.node_type != "empty":
             cond_result = self._materialize_operand(cond)
             self._emit("jz", arg1=cond_result, arg2=end_label)
 
-        self.loop_stack.append((continue_label, end_label))
+        self._emit("label", arg1=body_label)
+
+        self.loop_stack.append((step_label, end_label))
         if body:
             self._visit(body, None)
 
-        self._emit("label", arg1=continue_label)
+        self._emit("label", arg1=step_label)
         if incr and incr.node_type != "empty":
             self._visit(incr, None)
 
-        self._emit("jmp", arg1=start_label)
+        self._emit("jmp", arg1=cond_label)
         self._emit("label", arg1=end_label)
         self.loop_stack.pop()
         return None
@@ -289,15 +302,20 @@ class IntermediateCodeGenerator:
             return None
 
         if len(node.children) == 1:
-            operand = self._materialize_operand_without_coercion(node.children[0])
             result = self._new_temp()
             result_type = node.type_info if hasattr(node, 'type_info') else None
             if node.value in {"++", "--"}:
+                child = node.children[0]
+                if child.node_type == "id":
+                    operand = self._visit_without_coercion(child)
+                else:
+                    operand = self._materialize_operand_without_coercion(child)
                 op = "+" if node.value == "++" else "-"
                 instr = TACInstruction(op, arg1=operand, arg2="1", result=operand, type_info=result_type)
                 self.instructions.append(instr)
                 self.temp_types[operand] = result_type
                 return operand
+            operand = self._materialize_operand_without_coercion(node.children[0])
             instr = TACInstruction(node.value, arg1=operand, result=result, type_info=result_type)
             self.instructions.append(instr)
             self.temp_types[result] = result_type
@@ -342,15 +360,20 @@ class IntermediateCodeGenerator:
             return None
 
         if len(node.children) == 1:
-            operand = self._materialize_operand(node.children[0])
             result_type = node.type_info if hasattr(node, 'type_info') else None
             if node.value in {"++", "--"}:
+                child = node.children[0]
+                if child.node_type == "id":
+                    operand = self._visit(child, None)
+                else:
+                    operand = self._materialize_operand(child)
                 op = "+" if node.value == "++" else "-"
                 instr = TACInstruction(op, arg1=operand, arg2="1", result=operand, type_info=result_type)
                 self.instructions.append(instr)
                 self.temp_types[operand] = result_type
                 return operand
 
+            operand = self._materialize_operand(node.children[0])
             result = self._new_temp()
             instr = TACInstruction(node.value, arg1=operand, result=result, type_info=result_type)
             self.instructions.append(instr)
