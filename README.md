@@ -44,7 +44,9 @@ compiler_phases_visualizer/
 
 ## Example
 
-Input expression: `position=inital+rate*60`
+Input expression: `position=inital+rate*60;`
+
+more examples : `result = a + 4 * (c - d) - ((a+c) - b) * d;`
 
 | Phase | Screenshot |
 |-------|-----------|
@@ -57,4 +59,4 @@ Input expression: `position=inital+rate*60`
 
 ## Usage
 
-Enter an expression and click "Compile" to see all phases render in their respective tabs.
+Enter an expression and click "Analyze" to see all phases render in their respective tabs.

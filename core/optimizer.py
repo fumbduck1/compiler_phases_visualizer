@@ -20,6 +20,10 @@ class Optimizer:
     def _clone_instructions(self, instructions: List[TACInstruction]) -> List[TACInstruction]:
         return [self._clone_instruction(instr) for instr in instructions]
 
+    @staticmethod
+    def _is_control_flow(instr: TACInstruction) -> bool:
+        return instr.op in {"label", "jmp", "jz", "jnz", "return", "error"}
+
     def optimize(self) -> List[TACInstruction]:
         # Run optimization passes
         optimized = self._clone_instructions(self.instructions)
@@ -39,6 +43,10 @@ class Optimizer:
         optimized = []
 
         for instr in instructions:
+            if self._is_control_flow(instr):
+                optimized.append(instr)
+                continue
+
             if instr.op in ["+", "-", "*", "/", "intfloat", "="] and instr.result:
                 left = instr.arg1
                 right = instr.arg2
@@ -83,6 +91,11 @@ class Optimizer:
         while i < len(instructions):
             current = instructions[i]
 
+            if self._is_control_flow(current):
+                optimized.append(current)
+                i += 1
+                continue
+
             # Pattern: tN = a op b ; idX = tN  ->  idX = a op b
             if (
                 i + 1 < len(instructions)
@@ -120,6 +133,10 @@ class Optimizer:
         constants = {}  # Track constant values: {result: value}
 
         for instr in instructions:
+            if self._is_control_flow(instr):
+                optimized.append(instr)
+                continue
+
             # Check if this is a constant expression
             if instr.op in ["+", "-", "*", "/"] and instr.arg1 and instr.arg2:
                 try:
@@ -179,6 +196,9 @@ class Optimizer:
 
     def _operation_compacting(self, instructions: List[TACInstruction]) -> List[TACInstruction]:
         """Compact operations by removing intermediate temps when possible."""
+        if any(self._is_control_flow(instr) for instr in instructions):
+            return instructions
+
         optimized = []
         temp_defs = {}  # {temp: instruction that defines it}
         temp_uses = {}  # {temp: list of instructions that use it}
@@ -247,6 +267,10 @@ class Optimizer:
 
         # Filter out dead assignments
         for instr in instructions:
+            if self._is_control_flow(instr):
+                optimized.append(instr)
+                continue
+
             # Keep assignments to variables (id*)
             if instr.result and instr.result.startswith("id"):
                 optimized.append(instr)

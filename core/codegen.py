@@ -108,11 +108,66 @@ class CodeGenerator:
             self._gen_move(instr)
         elif instr.op == "intfloat":
             self._gen_intfloat(instr)
-        elif instr.op in ["+", "-", "*", "/"]:
+        elif instr.op in ["+", "-", "*", "/", "%"]:
             self._gen_arithmetic(instr)
+        elif instr.op in ["<", "<=", ">", ">=", "==", "!="]:
+            self._gen_comparison(instr)
+        elif instr.op in ["&&", "||"]:
+            self._gen_logical(instr)
+        elif instr.op == "label":
+            self._gen_label(instr)
+        elif instr.op == "jmp":
+            self.assembly.append(f"  JMP {instr.arg1}")
+        elif instr.op == "jz":
+            self.assembly.append(f"  JZ {instr.arg1}, {instr.arg2}")
+        elif instr.op == "jnz":
+            self.assembly.append(f"  JNZ {instr.arg1}, {instr.arg2}")
+        elif instr.op == "return":
+            self.assembly.append(f"  RET {instr.arg1}" if instr.arg1 else "  RET")
+        elif instr.op == "error":
+            self.assembly.append(f"; ERROR: {instr.arg1}")
+        else:
+            self.assembly.append(f"; unsupported TAC op: {instr.op}")
 
         self._consume_operand(instr.arg1)
         self._consume_operand(instr.arg2)
+
+    def _gen_label(self, instr: TACInstruction):
+        if instr.arg1:
+            self.assembly.append(f"{instr.arg1}:")
+
+    def _gen_comparison(self, instr: TACInstruction):
+        if not instr.result or not instr.arg1 or not instr.arg2:
+            return
+
+        left_reg = self._load_operand(instr.arg1)
+        right_reg = self._load_operand(instr.arg2)
+        result_reg = self.allocator.allocate(instr.result)
+
+        self.assembly.append(f"  CMP {left_reg}, {right_reg}")
+
+        set_map = {
+            "<": "SETLT",
+            "<=": "SETLE",
+            ">": "SETGT",
+            ">=": "SETGE",
+            "==": "SETEQ",
+            "!=": "SETNE",
+        }
+        set_op = set_map.get(instr.op, "SETCC")
+        self.assembly.append(f"  {set_op} {result_reg}")
+        self._store_if_variable(instr.result, result_reg)
+
+    def _gen_logical(self, instr: TACInstruction):
+        if not instr.result or not instr.arg1 or not instr.arg2:
+            return
+
+        left_reg = self._load_operand(instr.arg1)
+        right_reg = self._load_operand(instr.arg2)
+        result_reg = self.allocator.allocate(instr.result)
+        op = "AND" if instr.op == "&&" else "OR"
+        self.assembly.append(f"  {op} {result_reg}, {left_reg}, {right_reg}")
+        self._store_if_variable(instr.result, result_reg)
 
     def _store_if_variable(self, dst: str, src_reg: str):
         """Persist register value to memory when destination is a variable."""

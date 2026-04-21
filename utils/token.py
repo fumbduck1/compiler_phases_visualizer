@@ -31,17 +31,96 @@ class TokenType:
     FLOAT = "float"
     INT = "int"
     ASSIGN = "="
+    PLUS_ASSIGN = "+="
+    MINUS_ASSIGN = "-="
+    MUL_ASSIGN = "*="
+    DIV_ASSIGN = "/="
+    MOD_ASSIGN = "%="
     PLUS = "+"
     MINUS = "-"
     MUL = "*"
     DIV = "/"
+    MOD = "%"
+    INC = "++"
+    DEC = "--"
+    LT = "<"
+    GT = ">"
+    LE = "<="
+    GE = ">="
+    EQ = "=="
+    NE = "!="
+    AND = "&&"
+    OR = "||"
+    NOT = "!"
+    BIT_AND = "&"
+    BIT_OR = "|"
+    BIT_XOR = "^"
+    BIT_NOT = "~"
+    SHL = "<<"
+    SHR = ">>"
+    ARROW = "->"
+    SCOPE = "::"
     LPAREN = "("
     RPAREN = ")"
+    LBRACE = "{"
+    RBRACE = "}"
+    LBRACKET = "["
+    RBRACKET = "]"
     SEMICOLON = ";"
     COMMA = ","
+    DOT = "."
+    COLON = ":"
+    QUESTION = "?"
     KEYWORD = "keyword"
     EOF = "EOF"
     UNKNOWN = "unknown"
 
 
-KEYWORDS = {"int", "float", "if", "else", "while", "return"}
+KEYWORDS = {
+    "break",
+    "case",
+    "char",
+    "class",
+    "const",
+    "continue",
+    "default",
+    "do",
+    "double",
+    "else",
+    "enum",
+    "float",
+    "for",
+    "if",
+    "int",
+    "long",
+    "return",
+    "short",
+    "signed",
+    "sizeof",
+    "static",
+    "struct",
+    "switch",
+    "typedef",
+    "union",
+    "unsigned",
+    "void",
+    "volatile",
+    "while",
+    "bool",
+    "true",
+    "false",
+    "namespace",
+    "using",
+    "template",
+    "typename",
+    "public",
+    "private",
+    "protected",
+    "virtual",
+    "override",
+    "friend",
+    "new",
+    "delete",
+    "this",
+    "operator",
+}

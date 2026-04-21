@@ -544,16 +544,17 @@ class CompilerGUI(ctk.CTk):
         self.input_frame.pack(side="top", fill="x", padx=10, pady=10)
 
         self.input_label = ctk.CTkLabel(
-            self.input_frame, text="Enter Statement:", font=("Arial", 12)
+            self.input_frame, text="Enter Code:", font=("Arial", 12)
         )
         self.input_label.pack(side="left", padx=5)
 
-        self.input_entry = ctk.CTkEntry(
+        self.input_entry = ctk.CTkTextbox(
             self.input_frame,
-            width=500,
-            placeholder_text="e.g., position = initial + rate * 60",
+            width=520,
+            height=110,
         )
         self.input_entry.pack(side="left", padx=5)
+        self.input_entry.insert("1.0", "e.g., for(int i=0; i<=100; i++) { x = x + i; }")
 
         self.analyze_btn = ctk.CTkButton(
             self.input_frame, text="Analyze", command=self.run_analysis
@@ -581,7 +582,7 @@ class CompilerGUI(ctk.CTk):
         self.error_panel.pack(fill="x", pady=5)
 
     def run_analysis(self):
-        source = self.input_entry.get().strip()
+        source = self.input_entry.get("1.0", "end-1c").strip()
         if not source:
             return
 
@@ -624,7 +625,8 @@ class CompilerGUI(ctk.CTk):
         self.error_panel.update(all_errors)
 
     def clear_all(self):
-        self.input_entry.delete(0, "end")
+        self.input_entry.delete("1.0", "end")
+        self.input_entry.insert("1.0", "")
 
         for name in self.phase_panels.tabs:
             for widget in self.phase_panels.tabs[name].winfo_children():

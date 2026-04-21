@@ -38,6 +38,8 @@ class IntermediateCodeGenerator:
         self.instructions: List[TACInstruction] = []
         self.temp_counter = 0
         self.temp_types = {}  # Track types of temps: {temp_name: type}
+        self.label_counter = 0
+        self.loop_stack: List[tuple[str, str]] = []
 
     def _emit_copy(self, operand: str, type_info=None) -> str:
         result = self._new_temp()
@@ -81,6 +83,15 @@ class IntermediateCodeGenerator:
         self.temp_counter += 1
         return f"t{self.temp_counter}"
 
+    def _new_label(self, prefix: str = "L") -> str:
+        self.label_counter += 1
+        return f"{prefix}{self.label_counter}"
+
+    def _emit(self, op: str, arg1=None, arg2=None, result=None, type_info=None):
+        instr = TACInstruction(op, arg1=arg1, arg2=arg2, result=result, type_info=type_info)
+        self.instructions.append(instr)
+        return instr
+
     def _visit(self, node: ParseNode, result: Optional[str]) -> Optional[str]:
         if node is None:
             return None
@@ -89,6 +100,26 @@ class IntermediateCodeGenerator:
         if hasattr(node, 'coercion') and node.coercion:
             return self._handle_coercion(node)
 
+        if node.node_type in {"program", "block"}:
+            for child in node.children:
+                self._visit(child, None)
+            return None
+        if node.node_type == "declaration":
+            return self._gen_declaration(node)
+        if node.node_type == "for":
+            return self._gen_for(node)
+        if node.node_type == "while":
+            return self._gen_while(node)
+        if node.node_type == "if":
+            return self._gen_if(node)
+        if node.node_type == "return":
+            return self._gen_return(node)
+        if node.node_type == "break":
+            return self._gen_break()
+        if node.node_type == "continue":
+            return self._gen_continue()
+        if node.node_type == "empty":
+            return None
         if node.node_type == "assign":
             return self._gen_assign(node)
         elif node.node_type == "op":
@@ -99,6 +130,117 @@ class IntermediateCodeGenerator:
         elif node.node_type == "num":
             return str(node.value)
 
+        return None
+
+    def _gen_declaration(self, node: ParseNode) -> Optional[str]:
+        if not node.children:
+            return None
+
+        target = self._visit(node.children[0], None)
+        if len(node.children) > 1:
+            value = self._materialize_operand(node.children[1])
+            rhs_type = node.children[1].type_info if hasattr(node.children[1], "type_info") else None
+            self._emit("=", arg1=value, result=target, type_info=rhs_type)
+            if target and target.startswith("id"):
+                self.temp_types[target] = rhs_type
+        return target
+
+    def _gen_for(self, node: ParseNode) -> Optional[str]:
+        init = node.children[0] if len(node.children) > 0 else None
+        cond = node.children[1] if len(node.children) > 1 else None
+        incr = node.children[2] if len(node.children) > 2 else None
+        body = node.children[3] if len(node.children) > 3 else None
+
+        start_label = self._new_label("for_start_")
+        end_label = self._new_label("for_end_")
+        continue_label = self._new_label("for_continue_")
+
+        if init:
+            self._visit(init, None)
+
+        self._emit("label", arg1=start_label)
+
+        if cond and cond.node_type != "empty":
+            cond_result = self._materialize_operand(cond)
+            self._emit("jz", arg1=cond_result, arg2=end_label)
+
+        self.loop_stack.append((continue_label, end_label))
+        if body:
+            self._visit(body, None)
+
+        self._emit("label", arg1=continue_label)
+        if incr and incr.node_type != "empty":
+            self._visit(incr, None)
+
+        self._emit("jmp", arg1=start_label)
+        self._emit("label", arg1=end_label)
+        self.loop_stack.pop()
+        return None
+
+    def _gen_while(self, node: ParseNode) -> Optional[str]:
+        cond = node.children[0] if len(node.children) > 0 else None
+        body = node.children[1] if len(node.children) > 1 else None
+
+        start_label = self._new_label("while_start_")
+        end_label = self._new_label("while_end_")
+
+        self._emit("label", arg1=start_label)
+        if cond and cond.node_type != "empty":
+            cond_result = self._materialize_operand(cond)
+            self._emit("jz", arg1=cond_result, arg2=end_label)
+
+        self.loop_stack.append((start_label, end_label))
+        if body:
+            self._visit(body, None)
+        self._emit("jmp", arg1=start_label)
+        self._emit("label", arg1=end_label)
+        self.loop_stack.pop()
+        return None
+
+    def _gen_if(self, node: ParseNode) -> Optional[str]:
+        cond = node.children[0] if len(node.children) > 0 else None
+        then_branch = node.children[1] if len(node.children) > 1 else None
+        else_branch = node.children[2] if len(node.children) > 2 else None
+
+        else_label = self._new_label("if_else_")
+        end_label = self._new_label("if_end_")
+
+        if cond and cond.node_type != "empty":
+            cond_result = self._materialize_operand(cond)
+            self._emit("jz", arg1=cond_result, arg2=else_label)
+
+        if then_branch:
+            self._visit(then_branch, None)
+
+        self._emit("jmp", arg1=end_label)
+        self._emit("label", arg1=else_label)
+        if else_branch:
+            self._visit(else_branch, None)
+        self._emit("label", arg1=end_label)
+        return None
+
+    def _gen_return(self, node: ParseNode) -> Optional[str]:
+        if node.children:
+            value = self._materialize_operand(node.children[0])
+            self._emit("return", arg1=value)
+        else:
+            self._emit("return")
+        return None
+
+    def _gen_break(self) -> Optional[str]:
+        if not self.loop_stack:
+            self._emit("error", arg1="break outside loop")
+            return None
+        _, break_label = self.loop_stack[-1]
+        self._emit("jmp", arg1=break_label)
+        return None
+
+    def _gen_continue(self) -> Optional[str]:
+        if not self.loop_stack:
+            self._emit("error", arg1="continue outside loop")
+            return None
+        continue_label, _ = self.loop_stack[-1]
+        self._emit("jmp", arg1=continue_label)
         return None
 
     def _handle_coercion(self, node: ParseNode) -> str:
@@ -150,6 +292,12 @@ class IntermediateCodeGenerator:
             operand = self._materialize_operand_without_coercion(node.children[0])
             result = self._new_temp()
             result_type = node.type_info if hasattr(node, 'type_info') else None
+            if node.value in {"++", "--"}:
+                op = "+" if node.value == "++" else "-"
+                instr = TACInstruction(op, arg1=operand, arg2="1", result=operand, type_info=result_type)
+                self.instructions.append(instr)
+                self.temp_types[operand] = result_type
+                return operand
             instr = TACInstruction(node.value, arg1=operand, result=result, type_info=result_type)
             self.instructions.append(instr)
             self.temp_types[result] = result_type
@@ -195,8 +343,15 @@ class IntermediateCodeGenerator:
 
         if len(node.children) == 1:
             operand = self._materialize_operand(node.children[0])
-            result = self._new_temp()
             result_type = node.type_info if hasattr(node, 'type_info') else None
+            if node.value in {"++", "--"}:
+                op = "+" if node.value == "++" else "-"
+                instr = TACInstruction(op, arg1=operand, arg2="1", result=operand, type_info=result_type)
+                self.instructions.append(instr)
+                self.temp_types[operand] = result_type
+                return operand
+
+            result = self._new_temp()
             instr = TACInstruction(node.value, arg1=operand, result=result, type_info=result_type)
             self.instructions.append(instr)
             self.temp_types[result] = result_type
@@ -210,7 +365,21 @@ class IntermediateCodeGenerator:
             result = self._new_temp()
             result_type = node.type_info if hasattr(node, 'type_info') else None
 
-            op_map = {"+": "+", "-": "-", "*": "*", "/": "/"}
+            op_map = {
+                "+": "+",
+                "-": "-",
+                "*": "*",
+                "/": "/",
+                "%": "%",
+                "<": "<",
+                "<=": "<=",
+                ">": ">",
+                ">=": ">=",
+                "==": "==",
+                "!=": "!=",
+                "&&": "&&",
+                "||": "||",
+            }
             op = op_map.get(node.value, node.value)
 
             instr = TACInstruction(op, arg1=left, arg2=right, result=result, type_info=result_type)

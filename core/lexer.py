@@ -26,7 +26,7 @@ class Lexer:
                 self._identifier()
             elif char.isdigit():
                 self._number()
-            elif char in OPERATORS:
+            elif self._starts_operator():
                 self._operator()
             else:
                 self.errors.append(
@@ -52,10 +52,31 @@ class Lexer:
                 if self.source[self.pos + 1] == "/":
                     while self.pos < len(self.source) and self.source[self.pos] != "\n":
                         self.pos += 1
+                elif self.source[self.pos + 1] == "*":
+                    self.pos += 2
+                    self.column += 2
+                    while self.pos < len(self.source) - 1:
+                        if self.source[self.pos] == "*" and self.source[self.pos + 1] == "/":
+                            self.pos += 2
+                            self.column += 2
+                            break
+                        if self.source[self.pos] == "\n":
+                            self.line += 1
+                            self.column = 1
+                            self.pos += 1
+                        else:
+                            self.pos += 1
+                            self.column += 1
                 else:
                     break
             else:
                 break
+
+    def _starts_operator(self) -> bool:
+        if self.pos >= len(self.source):
+            return False
+
+        return any(self.source.startswith(op, self.pos) for op in OPERATORS)
 
     def _identifier(self):
         start = self.pos
@@ -107,12 +128,26 @@ class Lexer:
         self.tokens.append(token)
 
     def _operator(self):
-        char = self.source[self.pos]
-        token_type = OPERATORS[char]
-        token = Token(token_type, char, char, self.line, self.column)
+        matched = None
+        for op in sorted(OPERATORS.keys(), key=len, reverse=True):
+            if self.source.startswith(op, self.pos):
+                matched = op
+                break
+
+        if matched is None:
+            char = self.source[self.pos]
+            self.errors.append(
+                f"Lexical error at line {self.line}, column {self.column}: Unexpected operator '{char}'"
+            )
+            self.pos += 1
+            self.column += 1
+            return
+
+        token_type = OPERATORS[matched]
+        token = Token(token_type, matched, matched, self.line, self.column)
         self.tokens.append(token)
-        self.pos += 1
-        self.column += 1
+        self.pos += len(matched)
+        self.column += len(matched)
 
 
 def lex(source: str) -> Tuple[List[Token], SymbolTable, List[str]]:

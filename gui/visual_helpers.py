@@ -30,6 +30,11 @@ class VisualHelpers:
         elif node.value is not None:
             label = f"{node.node_type}: {node.value}"
 
+        if node.node_type in {"program", "block", "for", "while", "if", "return", "declaration", "empty"} and node.value is not None:
+            label = f"{node.node_type}: {node.value}"
+        elif node.node_type in {"program", "block", "for", "while", "if", "return", "declaration", "empty"}:
+            label = node.node_type
+
         if include_types and node.type_info:
             label = f"{label} [{node.type_info}]"
 
@@ -81,14 +86,46 @@ class VisualHelpers:
         for token in tokens:
             if token.type in {
                 TokenType.ASSIGN,
+                TokenType.PLUS_ASSIGN,
+                TokenType.MINUS_ASSIGN,
+                TokenType.MUL_ASSIGN,
+                TokenType.DIV_ASSIGN,
+                TokenType.MOD_ASSIGN,
                 TokenType.PLUS,
                 TokenType.MINUS,
                 TokenType.MUL,
                 TokenType.DIV,
+                TokenType.MOD,
+                TokenType.INC,
+                TokenType.DEC,
+                TokenType.LT,
+                TokenType.GT,
+                TokenType.LE,
+                TokenType.GE,
+                TokenType.EQ,
+                TokenType.NE,
+                TokenType.AND,
+                TokenType.OR,
+                TokenType.NOT,
+                TokenType.BIT_AND,
+                TokenType.BIT_OR,
+                TokenType.BIT_XOR,
+                TokenType.BIT_NOT,
+                TokenType.SHL,
+                TokenType.SHR,
+                TokenType.ARROW,
+                TokenType.SCOPE,
                 TokenType.LPAREN,
                 TokenType.RPAREN,
+                TokenType.LBRACE,
+                TokenType.RBRACE,
+                TokenType.LBRACKET,
+                TokenType.RBRACKET,
                 TokenType.SEMICOLON,
                 TokenType.COMMA,
+                TokenType.DOT,
+                TokenType.COLON,
+                TokenType.QUESTION,
             } and token.lexeme not in seen:
                 seen.add(token.lexeme)
                 rows.append([token.lexeme, token.type])

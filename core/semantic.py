@@ -38,6 +38,17 @@ class SemanticAnalyzer:
         return self.ast
 
     def _visit(self, node: ParseNode):
+        if node is None:
+            return
+
+        if node.node_type in {"program", "block", "for", "while", "if", "return", "empty"}:
+            self._analyze_container(node)
+            return
+
+        if node.node_type == "declaration":
+            self._analyze_declaration(node)
+            return
+
         if node.node_type == "assign":
             self._analyze_assignment(node)
         elif node.node_type == "op":
@@ -46,6 +57,31 @@ class SemanticAnalyzer:
             self._analyze_identifier(node)
         elif node.node_type == "num":
             self._analyze_numeric_literal(node)
+        else:
+            for child in node.children:
+                self._visit(child)
+
+    def _analyze_container(self, node: ParseNode):
+        for child in node.children:
+            self._visit(child)
+
+    def _analyze_declaration(self, node: ParseNode):
+        declared_type = node.value or TypeInfo.UNKNOWN
+        if node.children:
+            ident = node.children[0]
+            if ident.node_type == "id":
+                ident.type_info = declared_type
+                sym = self.symbol_table.get_by_index(ident.value)
+                if sym:
+                    sym["dtype"] = declared_type
+
+            if len(node.children) > 1:
+                init = node.children[1]
+                self._visit(init)
+                if ident.node_type == "id" and init.type_info and init.type_info != declared_type:
+                    self._record_coercion(init, init.type_info, declared_type)
+
+        node.type_info = declared_type
 
     def _record_coercion(self, node: ParseNode, from_type: str, to_type: str):
         coercion_op = TypeInfo.coerce(from_type, to_type)
@@ -106,6 +142,10 @@ class SemanticAnalyzer:
             left_type = node.children[0].type_info or TypeInfo.UNKNOWN
             right_type = node.children[1].type_info or TypeInfo.UNKNOWN
 
+            if node.value in {"<", "<=", ">", ">=", "==", "!=", "&&", "||"}:
+                node.type_info = TypeInfo.INT
+                return
+
             # If any operand is FLOAT, promote result to FLOAT and coerce other operands
             if left_type == TypeInfo.FLOAT or right_type == TypeInfo.FLOAT:
                 node.type_info = TypeInfo.FLOAT
@@ -118,7 +158,10 @@ class SemanticAnalyzer:
             else:
                 node.type_info = TypeInfo.INT
         elif len(node.children) == 1:
+            self._visit(node.children[0])
             node.type_info = node.children[0].type_info
+            if node.value in {"++", "--", "+", "-", "!"} and node.children[0].type_info:
+                node.type_info = node.children[0].type_info
 
     def _analyze_identifier(self, node: ParseNode):
         sym = self.symbol_table.get_by_index(node.value)
