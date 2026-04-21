@@ -1,13 +1,12 @@
 # Compiler Phases Visualizer
 
 A desktop GUI application that visualizes how source code expressions move through compiler phases: lexical analysis, syntax parsing, semantic analysis, intermediate TAC generation, optimization, and assembly code output.
-
-## Features
-
-- **Full compiler pipeline** - Track a single expression from source to pseudo-assembly
-- **Phase-specific views** - Grid displays for tokens, TAC, optimized TAC, and assembly; tree canvas for syntax/semantic trees
-- **Type coercion visibility** - See implicit conversions like `inttofloat()` 
-- **Symbol table & errors** - Live panels showing symbols and error logs
+## Features 
+- **Float-point assembly**-Visualize floating-point operations in the assembly code.   
+- **Full compiler pipeline** - Track a single expression from source to pseudo-assembly.
+- **Phase-specific views** - Grid displays for tokens, TAC, optimized TAC, and assembly; tree canvas for syntax/semantic trees.
+- **Type coercion visibility** - See implicit conversions like `inttofloat()`. 
+- **Symbol table & errors** - Live panels showing symbols and error logs.
 
 ## Tech Stack
 
@@ -41,7 +40,6 @@ compiler_phases_visualizer/
 ├── main.py           # Entry point
 └── requirements.txt
 ```
-
 ## Example
 
 Input expression: `position=initial+rate*60;`
